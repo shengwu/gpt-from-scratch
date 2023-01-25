@@ -86,17 +86,20 @@ class BigramLanguageModel(nn.Module):
         super().__init__()
         self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
 
-    def forward(self, idx, targets):
+    def forward(self, idx, targets=None):
         # idx and targets are both (B, T) tensor of integers
         logits = self.token_embedding_table(idx) # (B, T, C)
-        # reshape
-        B, T, C = logits.shape
-        # make one dimensional, make channel dimension the second dimension
-        logits = logits.view(B*T, C)
-        # make targets one dimensional. alternative: targets.view(-1)
-        targets = targets.view(B*T)
-        # how well are we predicting the next character? calculate loss
-        loss = F.cross_entropy(logits, targets)
+        if targets is None:
+            loss = None
+        else:
+            # reshape
+            B, T, C = logits.shape
+            # make one dimensional, make channel dimension the second dimension
+            logits = logits.view(B*T, C)
+            # make targets one dimensional. alternative: targets.view(-1)
+            targets = targets.view(B*T)
+            # how well are we predicting the next character? calculate loss
+            loss = F.cross_entropy(logits, targets)
         return logits, loss
 
     def generate(self, idx, max_new_tokens):
@@ -107,11 +110,11 @@ class BigramLanguageModel(nn.Module):
             # focus on previous time step
             logits = logits[:, -1, :] # becomes (B, C)
             # apply softmax to probabilities
-            probs = F.softmax(logits, dim=-1)
+            probs = F.softmax(logits, dim=-1) # (B, C)
             # sample from the distribution
-            idx_next = torch.multinomial(probs, num_samples=1)
+            idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
             # append sampled index to the running sequence
-            idx = torch.cat((idx, idx_next), dim=1)
+            idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
         return idx
 
 m = BigramLanguageModel(vocab_size)
@@ -122,4 +125,11 @@ print(loss)
 # tensor(4.8786, grad_fn=<NllLossBackward0>)
 # expecting loss to be -ln(1/65) or ~4.174
 # not perfect
+
+# create a 1 by 1 tensor, holding a zero. the zero represents a newline
+idx = torch.zeros((1, 1), dtype=torch.long)
+# get 100 predictions
+# turn the 1 dimensional array into a python list
+print(decode(m.generate(idx, max_new_tokens=100)[0].tolist()))
+# garbage - the model is untrained
 
