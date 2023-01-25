@@ -133,3 +133,19 @@ idx = torch.zeros((1, 1), dtype=torch.long)
 print(decode(m.generate(idx, max_new_tokens=100)[0].tolist()))
 # garbage - the model is untrained
 
+# create pytorch optimizer
+# typically 3e-4 but we're using a higher learning rate for our small model
+optimizer = torch.optim.AdamW(m.parameters(), lr=1e-3)
+batch_size = 32
+print('training...')
+for steps in range(10000):
+    # new batch
+    xb, yb = get_batch('train')
+    # evaluate loss
+    logits, loss = m(xb, yb)
+    optimizer.zero_grad(set_to_none=True)
+    loss.backward()
+    optimizer.step()
+print(loss.item())
+
+print(decode(m.generate(idx, max_new_tokens=300)[0].tolist()))
